@@ -1,0 +1,46 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-jobmatch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jobmatch}
+      POSTGRES_DB: ${POSTGRES_DB:-jobmatch}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    profiles: ["full"]
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-jobmatch}:${POSTGRES_PASSWORD:-jobmatch}@db:5432/${POSTGRES_DB:-jobmatch}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    profiles: ["full"]
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-jobmatch}:${POSTGRES_PASSWORD:-jobmatch}@db:5432/${POSTGRES_DB:-jobmatch}
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
