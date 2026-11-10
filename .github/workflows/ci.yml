@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+# Cancel an older run of the same branch when a new commit is pushed.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, types and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # A real Postgres + pgvector, same image as docker-compose.yml.
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: jobmatch
+          POSTGRES_PASSWORD: jobmatch
+          POSTGRES_DB: jobmatch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jobmatch -d jobmatch"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://jobmatch:jobmatch@localhost:5432/jobmatch
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+
+      - name: Install dependencies (exact versions from uv.lock)
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Check formatting
+        run: uv run ruff format --check .
+
+      - name: Type-check
+        run: uv run mypy
+
+      - name: Run migrations
+        run: uv run alembic upgrade head
+
+      - name: Run tests with coverage
+        run: uv run pytest --cov --cov-report=term-missing
