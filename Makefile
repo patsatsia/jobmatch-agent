@@ -100,3 +100,6 @@ check: ## Everything CI runs: lint, format check, types, tests
 clean: ## Remove caches and coverage files
 	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov .coverage coverage.xml
 	find . -type d -name __pycache__ -not -path "./.venv/*" -exec rm -rf {} +
+
+ingest: ## Fetch jobs from Arbeitnow into the database
+	$(UV) python -m app.ingest --max-pages 5

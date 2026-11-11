@@ -75,11 +75,7 @@ class ArbeitnowClient:
         logger.info("Stopped at max_pages=%d; more pages may exist", max_pages)
 
     async def fetch_visa_slugs(self, *, max_pages: int = 5) -> set[str]:
-        """Slugs of jobs that offer visa sponsorship.
-
-        Job objects don't say whether they sponsor visas; only the
-        `visa_sponsorship` filter knows. So we collect the slugs it returns.
-        """
+        """Slugs of jobs that offer visa sponsorship."""
         return {job.slug async for job in self.iter_jobs(max_pages=max_pages, visa_only=True)}
 
 
